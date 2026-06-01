@@ -89,6 +89,6 @@ export function updateFlameState(
   const values = keys.map((k) => updates[k]);
   return db.runAsync(
     `UPDATE flame_state SET ${sets}, updated_at = datetime('now') WHERE id = 1`,
-    ...values
+    values as SQLite.SQLiteBindValue[]
   );
 }

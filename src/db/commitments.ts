@@ -53,8 +53,7 @@ export async function updateCommitment(
   const values = keys.map((k) => (updates as Record<string, unknown>)[k]);
   await db.runAsync(
     `UPDATE commitments SET ${sets} WHERE id = ?`,
-    ...values,
-    id
+    ...[...values, id] as SQLite.SQLiteBindValue[]
   );
 }
 

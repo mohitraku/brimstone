@@ -194,7 +194,7 @@ export function FlameScene({ intensity, onSceneReady, style }: Props) {
         if (coreFlame) {
           coreFlame.visible = isAlive;
           coreFlame.scale.set(0.3 + i * 0.7, 0.3 + i * 1.2, 0.3 + i * 0.7);
-          coreFlame.material.opacity = i * 0.9;
+          (coreFlame.material as THREE.MeshBasicMaterial).opacity = i * 0.9;
           // Color shifts warmer with intensity
           const r = 1;
           const g = 0.3 + i * 0.5;
