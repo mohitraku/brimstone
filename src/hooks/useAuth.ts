@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
-import { digestStringAsync, CryptoDigestAlgorithm } from "expo-crypto";
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -25,27 +24,27 @@ export function useAuth() {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
-  // Email OTP — Supabase generates a magiclink token even without redirect URL.
-  // We hash it client-side for verifyOtp since type: "magiclink" expects token_hash.
   const sendEmailOtp = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+    const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true },
     });
+    console.log("[sendEmailOtp]", { data, error });
     if (error) throw error;
   }, []);
 
   const verifyEmailOtp = useCallback(async (email: string, token: string) => {
-    const tokenHash = await digestStringAsync(
-      CryptoDigestAlgorithm.SHA256,
-      token
-    );
-    const { error } = await supabase.auth.verifyOtp({
+    console.log("[verifyEmailOtp] token length:", token.length);
+    const { data, error } = await supabase.auth.verifyOtp({
       email,
-      token_hash: tokenHash,
-      type: "magiclink",
+      token,
+      type: "email",
     });
-    if (error) throw error;
+    console.log("[verifyEmailOtp]", { data, error });
+    if (error) {
+      console.error("[verifyEmailOtp] error:", error.message, error.code, error.status);
+      throw error;
+    }
   }, []);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
