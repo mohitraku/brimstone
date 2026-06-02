@@ -119,8 +119,9 @@ export default function LoginScreen() {
               onChangeText={setOtp}
               placeholder="000000"
               placeholderTextColor={colors.textFaint}
-              keyboardType="number-pad"
-              maxLength={6}
+              keyboardType="default"
+              autoCapitalize="none"
+              autoCorrect={false}
               autoFocus
             />
             <MinimalButton
