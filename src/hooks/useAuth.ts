@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
+import { digestStringAsync, CryptoDigestAlgorithm } from "expo-crypto";
+
+async function sha256(input: string): Promise<string> {
+  return digestStringAsync(CryptoDigestAlgorithm.SHA256, input);
+}
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -25,26 +30,35 @@ export function useAuth() {
   }, []);
 
   const sendEmailOtp = useCallback(async (email: string) => {
-    const { data, error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true },
     });
-    console.log("[sendEmailOtp]", { data, error });
     if (error) throw error;
   }, []);
 
   const verifyEmailOtp = useCallback(async (email: string, token: string) => {
-    console.log("[verifyEmailOtp] token length:", token.length);
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: "email",
-    });
-    console.log("[verifyEmailOtp]", { data, error });
-    if (error) {
-      console.error("[verifyEmailOtp] error:", error.message, error.code, error.status);
-      throw error;
+    const cleanToken = token.trim();
+
+    // Short token (6-12 chars) → try email OTP type first
+    if (cleanToken.length <= 12) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: cleanToken,
+        type: "email",
+      });
+      if (!error) return;
+      console.log("[verifyEmailOtp] email type failed, trying magiclink:", error.message);
     }
+
+    // Long token or OTP type failed → try magiclink with SHA256 hash
+    const tokenHash = await sha256(cleanToken);
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token_hash: tokenHash,
+      type: "magiclink",
+    });
+    if (error) throw error;
   }, []);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
