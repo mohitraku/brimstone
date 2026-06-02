@@ -9,21 +9,19 @@ import { useRouter } from "expo-router";
 import { useFlame } from "@/hooks/useFlame";
 import { useCommitments } from "@/hooks/useCommitments";
 import { useBell } from "@/hooks/useBell";
-import { useAuth } from "@/hooks/useAuth";
 import { useEstus } from "@/hooks/useEstus";
 import { CommitmentCard } from "@/components/commitments/CommitmentCard";
 import { colors, spacing, fontSize } from "@/constants/theme";
 
 export default function CommitmentsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const { flame, refresh } = useFlame();
   const {
     commitments,
     completedIds,
     completeCommitment,
   } = useCommitments(refresh);
-  const { announceCompletion } = useBell(!!user);
+  const { announceCompletion } = useBell();
   const { useCharge } = useEstus(refresh);
 
   const handleComplete = async (id: string) => {

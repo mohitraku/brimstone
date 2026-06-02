@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { useFlame } from "@/hooks/useFlame";
 import { useCommitments } from "@/hooks/useCommitments";
 import { useBell } from "@/hooks/useBell";
-import { useAuth } from "@/hooks/useAuth";
 import { FlameScene } from "@/components/flame/FlameScene";
 import { EstusDisplay } from "@/components/estus/EstusDisplay";
 import { CommitmentCard } from "@/components/commitments/CommitmentCard";
@@ -12,14 +11,13 @@ import { colors, spacing, fontSize } from "@/constants/theme";
 
 export default function FlameScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const { flame, refresh } = useFlame();
   const {
     commitments,
     completedIds,
     completeCommitment,
   } = useCommitments(refresh);
-  const { announceCompletion } = useBell(!!user);
+  const { announceCompletion } = useBell();
 
   const todayCommitments = commitments.slice(0, 3); // Show first 3
 
