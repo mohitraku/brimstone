@@ -40,25 +40,32 @@ export function useAuth() {
   const verifyEmailOtp = useCallback(async (email: string, token: string) => {
     const cleanToken = token.trim();
 
-    // Short token (6-12 chars) → try email OTP type first
+    // Approach 1: short token → email OTP (raw 6-digit code)
     if (cleanToken.length <= 12) {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { error } = await supabase.auth.verifyOtp({
         email,
         token: cleanToken,
         type: "email",
       });
       if (!error) return;
-      console.log("[verifyEmailOtp] email type failed, trying magiclink:", error.message);
     }
 
-    // Long token or OTP type failed → try magiclink with SHA256 hash
-    const tokenHash = await sha256(cleanToken);
-    const { error } = await supabase.auth.verifyOtp({
+    // Approach 2: SHA256(token) → magiclink type ({{ .Token }} in template)
+    const hashedToken = await sha256(cleanToken);
+    const { error: hashError } = await supabase.auth.verifyOtp({
       email,
-      token_hash: tokenHash,
+      token_hash: hashedToken,
       type: "magiclink",
     });
-    if (error) throw error;
+    if (!hashError) return;
+
+    // Approach 3: token already is a hash → pass directly ({{ .TokenHash }} in template)
+    const { error: directError } = await supabase.auth.verifyOtp({
+      email,
+      token_hash: cleanToken,
+      type: "magiclink",
+    });
+    if (directError) throw directError;
   }, []);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
