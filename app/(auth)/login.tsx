@@ -14,12 +14,11 @@ import { colors, spacing, fontSize } from "@/constants/theme";
 import { StatusBar } from "expo-status-bar";
 
 export default function LoginScreen() {
-  const { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } =
-    useAuth();
+  const { sendMagicLink, sendPhoneOtp, verifyPhoneOtp } = useAuth();
   const [input, setInput] = useState("");
   const [otp, setOtp] = useState("");
   const [mode, setMode] = useState<"email" | "phone">("email");
-  const [step, setStep] = useState<"input" | "otp">("input");
+  const [step, setStep] = useState<"input" | "otp" | "sent">("input");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,11 +31,12 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       if (isEmail) {
-        await sendEmailOtp(input.trim());
+        await sendMagicLink(input.trim());
+        setStep("sent");
       } else {
         await sendPhoneOtp(input.trim());
+        setStep("otp");
       }
-      setStep("otp");
     } catch (e) {
       setError(e instanceof Error ? e.message : "The shrine is silent");
     } finally {
@@ -49,11 +49,7 @@ export default function LoginScreen() {
     setError(null);
     setIsSubmitting(true);
     try {
-      if (isEmail) {
-        await verifyEmailOtp(input.trim(), otp.trim());
-      } else {
-        await verifyPhoneOtp(input.trim(), otp.trim());
-      }
+      await verifyPhoneOtp(input.trim(), otp.trim());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Wrong token");
     } finally {
@@ -146,10 +142,30 @@ export default function LoginScreen() {
                   setError(null);
                 }}
               >
-                Try a different {isEmail ? "email" : "number"}
+                Try a different number
               </Text>
             </View>
           </>
+        )}
+
+        {step === "sent" && (
+          <View style={styles.sentContainer}>
+            <Text style={styles.sentText}>A link has been sent.</Text>
+            <Text style={styles.sentHint}>
+              Open the link in your email to enter the shrine.
+            </Text>
+            <View style={styles.toggleRow}>
+              <Text
+                style={styles.toggle}
+                onPress={() => {
+                  setStep("input");
+                  setError(null);
+                }}
+              >
+                Try a different email
+              </Text>
+            </View>
+          </View>
         )}
       </View>
     </KeyboardAvoidingView>

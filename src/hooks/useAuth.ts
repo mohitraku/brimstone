@@ -25,21 +25,21 @@ export function useAuth() {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
-  // Email OTP: no redirect → Supabase sends a 6-digit code instead of a magic link.
-  // Works in Expo Go since no deep linking is required.
-  const sendEmailOtp = useCallback(async (email: string) => {
+  // Magic link with Expo auth proxy:
+  // makeRedirectUri returns https://auth.expo.io/... in Expo Go, which
+  // redirects back into Expo Go after the magic link completes.
+  // In a dev build, it returns brimstone:// for native deep linking.
+  const sendMagicLink = useCallback(async (email: string) => {
+    const redirectTo = makeRedirectUri({
+      scheme: "brimstone",
+      path: "auth/callback",
+    });
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true },
-    });
-    if (error) throw error;
-  }, []);
-
-  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: "email",
+      options: {
+        emailRedirectTo: redirectTo,
+        shouldCreateUser: true,
+      },
     });
     if (error) throw error;
   }, []);
@@ -70,8 +70,7 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated: !!user,
-    sendEmailOtp,
-    verifyEmailOtp,
+    sendMagicLink,
     sendPhoneOtp,
     verifyPhoneOtp,
     signOut,
