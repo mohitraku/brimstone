@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session, User } from "@supabase/supabase-js";
-import { makeRedirectUri } from "expo-auth-session";
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -25,21 +24,20 @@ export function useAuth() {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
-  // Magic link with Expo auth proxy:
-  // makeRedirectUri returns https://auth.expo.io/... in Expo Go, which
-  // redirects back into Expo Go after the magic link completes.
-  // In a dev build, it returns brimstone:// for native deep linking.
-  const sendMagicLink = useCallback(async (email: string) => {
-    const redirectTo = makeRedirectUri({
-      scheme: "brimstone",
-      path: "auth/callback",
-    });
+  // Email OTP — Supabase sends a 6-digit code (no redirect URL = OTP mode)
+  const sendEmailOtp = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: redirectTo,
-        shouldCreateUser: true,
-      },
+      options: { shouldCreateUser: true },
+    });
+    if (error) throw error;
+  }, []);
+
+  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
     });
     if (error) throw error;
   }, []);
@@ -70,7 +68,8 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated: !!user,
-    sendMagicLink,
+    sendEmailOtp,
+    verifyEmailOtp,
     sendPhoneOtp,
     verifyPhoneOtp,
     signOut,

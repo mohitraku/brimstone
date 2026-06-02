@@ -6,7 +6,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from "react-native";
 import { useAuth } from "@/hooks/useAuth";
 import { MinimalButton } from "@/components/ui/MinimalButton";
@@ -14,11 +13,12 @@ import { colors, spacing, fontSize } from "@/constants/theme";
 import { StatusBar } from "expo-status-bar";
 
 export default function LoginScreen() {
-  const { sendMagicLink, sendPhoneOtp, verifyPhoneOtp } = useAuth();
+  const { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } =
+    useAuth();
   const [input, setInput] = useState("");
   const [otp, setOtp] = useState("");
   const [mode, setMode] = useState<"email" | "phone">("email");
-  const [step, setStep] = useState<"input" | "otp" | "sent">("input");
+  const [step, setStep] = useState<"input" | "otp">("input");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,12 +31,11 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       if (isEmail) {
-        await sendMagicLink(input.trim());
-        setStep("sent");
+        await sendEmailOtp(input.trim());
       } else {
         await sendPhoneOtp(input.trim());
-        setStep("otp");
       }
+      setStep("otp");
     } catch (e) {
       setError(e instanceof Error ? e.message : "The shrine is silent");
     } finally {
@@ -49,7 +48,11 @@ export default function LoginScreen() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await verifyPhoneOtp(input.trim(), otp.trim());
+      if (isEmail) {
+        await verifyEmailOtp(input.trim(), otp.trim());
+      } else {
+        await verifyPhoneOtp(input.trim(), otp.trim());
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Wrong token");
     } finally {
@@ -78,9 +81,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={input}
               onChangeText={setInput}
-              placeholder={
-                isEmail ? "your@email.com" : "+1234567890"
-              }
+              placeholder={isEmail ? "your@email.com" : "+1234567890"}
               placeholderTextColor={colors.textFaint}
               keyboardType={isEmail ? "email-address" : "phone-pad"}
               autoCapitalize="none"
@@ -88,11 +89,7 @@ export default function LoginScreen() {
               autoComplete="email"
             />
             <MinimalButton
-              title={
-                isSubmitting
-                  ? "Approaching..."
-                  : "Enter the shrine"
-              }
+              title={isSubmitting ? "Approaching..." : "Enter the shrine"}
               onPress={handleSubmit}
               disabled={isSubmitting}
             />
@@ -104,9 +101,7 @@ export default function LoginScreen() {
                   setError(null);
                 }}
               >
-                {isEmail
-                  ? "Use phone instead"
-                  : "Use email instead"}
+                {isEmail ? "Use phone instead" : "Use email instead"}
               </Text>
             </View>
           </>
@@ -142,30 +137,10 @@ export default function LoginScreen() {
                   setError(null);
                 }}
               >
-                Try a different number
+                Try a different {isEmail ? "email" : "number"}
               </Text>
             </View>
           </>
-        )}
-
-        {step === "sent" && (
-          <View style={styles.sentContainer}>
-            <Text style={styles.sentText}>A link has been sent.</Text>
-            <Text style={styles.sentHint}>
-              Open the link in your email to enter the shrine.
-            </Text>
-            <View style={styles.toggleRow}>
-              <Text
-                style={styles.toggle}
-                onPress={() => {
-                  setStep("input");
-                  setError(null);
-                }}
-              >
-                Try a different email
-              </Text>
-            </View>
-          </View>
         )}
       </View>
     </KeyboardAvoidingView>
@@ -231,20 +206,5 @@ const styles = StyleSheet.create({
     fontFamily: "serif",
     fontStyle: "italic",
     textDecorationLine: "underline",
-  },
-  sentContainer: {
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  sentText: {
-    color: colors.text,
-    fontSize: fontSize.lg,
-    fontFamily: "serif",
-  },
-  sentHint: {
-    color: colors.textDim,
-    fontSize: fontSize.sm,
-    fontFamily: "serif",
-    fontStyle: "italic",
   },
 });
