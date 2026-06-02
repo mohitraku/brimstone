@@ -1,3 +1,4 @@
+import "react-native-get-random-values";
 import "react-native-url-polyfill/auto";
 import { useEffect } from "react";
 import { Stack } from "expo-router";

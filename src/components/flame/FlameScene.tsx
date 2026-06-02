@@ -27,8 +27,16 @@ export function FlameScene({ intensity, onSceneReady, style }: Props) {
       // Setup Three.js renderer
       const { drawingBufferWidth: w, drawingBufferHeight: h } = gl;
       renderer = new THREE.WebGLRenderer({
-        // @ts-expect-error expo-gl context
-        canvas: { width: w, height: h, style: {} },
+        // expo-gl provides a raw GL context, not a real canvas.
+        // Three.js needs addEventListener/removeEventListener on the canvas object.
+        canvas: {
+          width: w,
+          height: h,
+          style: {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
         context: gl,
         antialias: true,
         alpha: true,
