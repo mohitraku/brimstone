@@ -15,7 +15,7 @@ No tutorials. No passwords. No social features. Just you and the flame — and a
 
 ## Tech
 
-- **Mobile:** Expo SDK 52, React Native 0.76, TypeScript
+- **Mobile:** Expo SDK 54, React Native 0.81, TypeScript
 - **3D:** Three.js via expo-gl — low-poly retro flame with flat shading
 - **Auth:** Supabase — magic link (email) and phone OTP (no passwords)
 - **Data:** SQLite on-device (privacy-first; nothing leaves your phone except anonymous completion pings)

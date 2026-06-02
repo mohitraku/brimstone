@@ -25,14 +25,21 @@ export function useAuth() {
     return () => subscription.subscription.unsubscribe();
   }, []);
 
-  const sendMagicLink = useCallback(async (email: string) => {
-    const redirectTo = makeRedirectUri({ scheme: "brimstone" });
+  // Email OTP: no redirect → Supabase sends a 6-digit code instead of a magic link.
+  // Works in Expo Go since no deep linking is required.
+  const sendEmailOtp = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: {
-        emailRedirectTo: redirectTo,
-        shouldCreateUser: true,
-      },
+      options: { shouldCreateUser: true },
+    });
+    if (error) throw error;
+  }, []);
+
+  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
     });
     if (error) throw error;
   }, []);
@@ -63,7 +70,8 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated: !!user,
-    sendMagicLink,
+    sendEmailOtp,
+    verifyEmailOtp,
     sendPhoneOtp,
     verifyPhoneOtp,
     signOut,
