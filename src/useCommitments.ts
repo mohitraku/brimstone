@@ -24,17 +24,14 @@ export function useCommitments(onChange?: () => void) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [all, today, ids] = await Promise.all([
+    const today = todayDateString();
+    const [all, ids] = await Promise.all([
       getAllCommitments(),
-      todayDateString(),
-      getTodaysCompletedIds(todayDateString()),
+      getTodaysCompletedIds(today),
     ]);
     setCommitments(all);
     setCompletedIds(ids);
     setIsLoading(false);
-    // Re-fetch completedIds with the actual today string
-    const freshIds = await getTodaysCompletedIds(todayDateString());
-    setCompletedIds(freshIds);
   }, []);
 
   useEffect(() => {
