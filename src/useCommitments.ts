@@ -24,14 +24,19 @@ export function useCommitments(onChange?: () => void) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const today = todayDateString();
-    const [all, ids] = await Promise.all([
-      getAllCommitments(),
-      getTodaysCompletedIds(today),
-    ]);
-    setCommitments(all);
-    setCompletedIds(ids);
-    setIsLoading(false);
+    try {
+      const today = todayDateString();
+      const [all, ids] = await Promise.all([
+        getAllCommitments(),
+        getTodaysCompletedIds(today),
+      ]);
+      setCommitments(all);
+      setCompletedIds(ids);
+    } catch (e) {
+      console.error("useCommitments.refresh failed:", e);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {

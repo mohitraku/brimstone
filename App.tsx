@@ -1,6 +1,6 @@
 // Brimstone — life momentum builder. Single entry, no router, no bloat.
 import { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFlame } from "./src/useFlame";
@@ -23,12 +23,18 @@ export default function App() {
 
   // Process overnight decay once on mount
   useEffect(() => {
+    let cancelled = false;
     async function init() {
-      await processDecay();
-      await rekindleIfDead();
-      setDecayRan(true);
+      try {
+        await processDecay();
+        await rekindleIfDead();
+      } catch (e) {
+        console.error("Decay init failed:", e);
+      }
+      if (!cancelled) setDecayRan(true);
     }
     init();
+    return () => { cancelled = true; };
   }, [processDecay, rekindleIfDead]);
 
   const handleComplete = useCallback(
@@ -36,11 +42,12 @@ export default function App() {
     [complete],
   );
 
-  // Show nothing until decay has run (avoids flicker)
+  // Loading guard — the ember stirs
   if (isLoading || !flame || !decayRan) {
     return (
       <View style={styles.root}>
         <StatusBar style="light" backgroundColor={colors.bg} />
+        <Text style={styles.loadingText}>the ember stirs…</Text>
       </View>
     );
   }
@@ -74,5 +81,15 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: colors.textFaint,
+    fontSize: 13,
+    fontFamily: "serif",
+    fontStyle: "italic",
+    opacity: 0.5,
+    marginTop: 40,
   },
 });

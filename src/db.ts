@@ -40,12 +40,19 @@ export function generateId(): string {
 }
 
 let _db: SQLite.SQLiteDatabase | null = null;
+let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
-  _db = await SQLite.openDatabaseAsync("brimstone.db");
-  await runMigrations(_db);
-  return _db;
+  if (!_dbPromise) {
+    _dbPromise = (async () => {
+      const db = await SQLite.openDatabaseAsync("brimstone.db");
+      await runMigrations(db);
+      _db = db;
+      return db;
+    })();
+  }
+  return _dbPromise;
 }
 
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
