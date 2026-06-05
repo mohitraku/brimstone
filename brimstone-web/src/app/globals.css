@@ -1,0 +1,40 @@
+/* ── Brimstone — dark, warm, flat. PS1-era aesthetic. No gradients, no shadows. ── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; overflow: hidden;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+body { background-color: #0a0a0a; color: #b8a89a; font-family: serif; font-size: 15px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
+html { overscroll-behavior: none; }
+input, button { font-family: serif; color: inherit; }
+
+:root {
+  --color-bg: #0a0a0a; --color-surface: #111111; --color-border: #1a1a1a;
+  --color-ember: #4a1008; --color-deep-orange: #8b3a0f; --color-orange: #b8550f;
+  --color-gold: #c47a1a; --color-pale: #d4a44a; --color-text: #b8a89a;
+  --color-text-faint: #5c544c; --color-text-muted: #3a3430; --color-accent: #9e6a20;
+  --color-accent-faint: #5c3d12; --color-danger: #6b2020; --color-success: #3a4a2a;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+::selection { background: var(--color-accent-faint); color: var(--color-text); }
+
+/* Flame animations */
+@keyframes pulse {
+  0% { transform: scale(0.88); } 52.9% { transform: scale(1.0); } 100% { transform: scale(0.93); }
+}
+@keyframes flicker {
+  0% { transform: scale(1.0); } 12.3% { transform: scale(0.4); } 32.3% { transform: scale(0.9); }
+  41.5% { transform: scale(0.3); } 69.2% { transform: scale(1.0); } 83.1% { transform: scale(0.5); }
+  100% { transform: scale(1.0); }
+}
+@keyframes wispSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes wispSpin2 { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes emberPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+@keyframes overlayFade {
+  0% { opacity: 0; } 6.5% { opacity: 1; } 60.9% { opacity: 1; } 100% { opacity: 0.12; }
+}

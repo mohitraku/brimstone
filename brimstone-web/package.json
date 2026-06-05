@@ -1,0 +1,32 @@
+{
+  "name": "brimstone",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "pages:dev": "npx @cloudflare/next-on-pages",
+    "pages:preview": "npx @cloudflare/next-on-pages && npx wrangler pages dev .vercel/output/static",
+    "deploy": "npx @cloudflare/next-on-pages && npx wrangler pages deploy .vercel/output/static"
+  },
+  "dependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@polar-sh/sdk": "^0.48.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.107.0",
+    "next": "15.5.2",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.7",
+    "typescript": "^5",
+    "wrangler": "^4.98.0"
+  }
+}
