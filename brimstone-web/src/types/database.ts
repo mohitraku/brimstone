@@ -51,7 +51,7 @@ export interface Subscription {
   user_id: string;
   polar_subscription_id: string | null;
   polar_price_id: string | null;
-  status: "active" | "past_due" | "canceled" | "inactive";
+  status: "trialing" | "active" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired" | "inactive";
   current_period_end: string | null;
   created_at: string;
 }

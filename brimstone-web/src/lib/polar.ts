@@ -11,11 +11,14 @@ function getClient() {
 export async function createCheckoutSession(email: string): Promise<string> {
   const polar = getClient();
   const productId = process.env.POLAR_PRODUCT_ID!;
+  const trialDays = parseInt(process.env.TRIAL_DAYS ?? "10", 10);
 
   const result = await polar.checkouts.create({
     products: [productId],
     customerEmail: email,
     successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/?checkout=success`,
+    trialInterval: "day",
+    trialIntervalCount: trialDays,
   });
 
   return result.url ?? `${process.env.NEXT_PUBLIC_APP_URL}/`;

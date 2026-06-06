@@ -1,116 +1,126 @@
--- Brimstone database schema for Supabase PostgreSQL
--- Run via: supabase db push, or paste into Supabase SQL Editor
+-- Brimstone schema v1. Run in Supabase SQL Editor or via supabase db push.
+-- Enables RLS on every table as a safety net (API routes enforce auth).
 
 -- Enable UUID generation
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create extension if not exists "uuid-ossp";
 
--- ── Users (extends Supabase auth.users) ─────────────────────
-CREATE TABLE IF NOT EXISTS public.users (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  polar_customer_id TEXT UNIQUE,
-  timezone TEXT NOT NULL DEFAULT 'UTC',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- ── Users (extends Supabase auth.users) ────────────────────────
+
+create table if not exists public.users (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  polar_customer_id text unique,
+  timezone text not null default 'UTC',
+  created_at timestamptz not null default now()
 );
 
--- ── Subscriptions ───────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.subscriptions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE UNIQUE,
-  polar_subscription_id TEXT UNIQUE,
-  polar_price_id TEXT,
-  status TEXT NOT NULL DEFAULT 'inactive',
-  current_period_end TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- ── Subscriptions ──────────────────────────────────────────────
+
+create table if not exists public.subscriptions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.users(id) on delete cascade unique,
+  polar_subscription_id text unique,
+  polar_price_id text,
+  status text not null default 'inactive',
+    -- 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid'
+    -- | 'incomplete' | 'incomplete_expired' | 'inactive'
+  current_period_end timestamptz,
+  created_at timestamptz not null default now()
 );
 
--- ── Flame state (one row per user) ──────────────────────────
-CREATE TABLE IF NOT EXISTS public.flame_state (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE UNIQUE,
-  flame_intensity REAL NOT NULL DEFAULT 0.5,
-  streak_days INTEGER NOT NULL DEFAULT 0,
-  longest_streak INTEGER NOT NULL DEFAULT 0,
-  death_count INTEGER NOT NULL DEFAULT 0,
-  last_decay_date DATE,
-  last_completion_date TIMESTAMPTZ
+-- ── Flame State (one per user) ─────────────────────────────────
+
+create table if not exists public.flame_state (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.users(id) on delete cascade unique,
+  flame_intensity real not null default 0.5,
+  streak_days integer not null default 0,
+  longest_streak integer not null default 0,
+  death_count integer not null default 0,
+  last_decay_date date,
+  last_completion_date timestamptz
 );
 
--- ── Commitments (oaths) ─────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.commitments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  frequency TEXT NOT NULL DEFAULT 'daily',
-  icon TEXT,
-  is_deleted BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+-- ── Commitments (oaths) ────────────────────────────────────────
+
+create table if not exists public.commitments (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  title text not null,
+  frequency text not null default 'daily',
+    -- 'daily' | 'weekdays' | 'weekly'
+  icon text,
+  is_deleted boolean not null default false,
+  created_at timestamptz not null default now()
 );
 
--- ── Embers (completion records) ─────────────────────────────
-CREATE TABLE IF NOT EXISTS public.embers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  commitment_id UUID NOT NULL REFERENCES public.commitments(id) ON DELETE CASCADE,
-  gain REAL NOT NULL DEFAULT 0,
-  completed_date DATE NOT NULL
+-- ── Embers (completion records) ────────────────────────────────
+
+create table if not exists public.embers (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  commitment_id uuid not null references public.commitments(id) on delete cascade,
+  gain real not null default 0,
+  completed_date date not null
 );
 
--- ── Decay log (audit trail) ─────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.decay_log (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  decay_date DATE NOT NULL,
-  amount REAL NOT NULL,
-  reason TEXT NOT NULL
+-- ── Decay Log (audit trail) ────────────────────────────────────
+
+create table if not exists public.decay_log (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  decay_date date not null,
+  amount real not null,
+  reason text not null
 );
 
--- ══════════════════════════════════════════════════════════════
--- ROW-LEVEL SECURITY (safety net)
--- ══════════════════════════════════════════════════════════════
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.flame_state ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.commitments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.embers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.decay_log ENABLE ROW LEVEL SECURITY;
+-- ── Row-Level Security ─────────────────────────────────────────
+
+alter table public.users enable row level security;
+alter table public.subscriptions enable row level security;
+alter table public.flame_state enable row level security;
+alter table public.commitments enable row level security;
+alter table public.embers enable row level security;
+alter table public.decay_log enable row level security;
 
 -- Each user can only see their own rows
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policname = 'user_isolation' AND tablename = 'users') THEN
-    CREATE POLICY user_isolation ON public.users FOR ALL USING (auth.uid() = id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policname = 'user_isolation' AND tablename = 'subscriptions') THEN
-    CREATE POLICY user_isolation ON public.subscriptions FOR ALL USING (auth.uid() = user_id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policname = 'user_isolation' AND tablename = 'flame_state') THEN
-    CREATE POLICY user_isolation ON public.flame_state FOR ALL USING (auth.uid() = user_id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policname = 'user_isolation' AND tablename = 'commitments') THEN
-    CREATE POLICY user_isolation ON public.commitments FOR ALL USING (auth.uid() = user_id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policname = 'user_isolation' AND tablename = 'embers') THEN
-    CREATE POLICY user_isolation ON public.embers FOR ALL USING (auth.uid() = user_id);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policname = 'user_isolation' AND tablename = 'decay_log') THEN
-    CREATE POLICY user_isolation ON public.decay_log FOR ALL USING (auth.uid() = user_id);
-  END IF;
-END $$;
+do $$
+begin
+  if not exists (select 1 from pg_policies where policyname = 'user_isolation' and tablename = 'users') then
+    create policy user_isolation on public.users for all using (auth.uid() = id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'user_isolation' and tablename = 'subscriptions') then
+    create policy user_isolation on public.subscriptions for all using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'user_isolation' and tablename = 'flame_state') then
+    create policy user_isolation on public.flame_state for all using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'user_isolation' and tablename = 'commitments') then
+    create policy user_isolation on public.commitments for all using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'user_isolation' and tablename = 'embers') then
+    create policy user_isolation on public.embers for all using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'user_isolation' and tablename = 'decay_log') then
+    create policy user_isolation on public.decay_log for all using (auth.uid() = user_id);
+  end if;
+end;
+$$;
 
--- ══════════════════════════════════════════════════════════════
--- TRIGGER: Auto-create user + flame_state on signup
--- ══════════════════════════════════════════════════════════════
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.users (id, email) VALUES (NEW.id, NEW.email);
-  INSERT INTO public.flame_state (user_id) VALUES (NEW.id);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- ── Auto-create user row + flame_state on signup ───────────────
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.users (id, email) values (new.id, new.email);
+  insert into public.flame_state (user_id) values (new.id);
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Drop if exists to avoid duplicate trigger errors on re-run
+drop trigger if exists on_auth_user_created on auth.users;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();

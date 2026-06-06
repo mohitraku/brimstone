@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.SUPABASE_SECRET_KEY!,
   );
 }
 
@@ -33,9 +33,11 @@ interface PolarCustomer {
   email?: string;
 }
 
+type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "unpaid" | "incomplete" | "incomplete_expired";
+
 interface PolarSubscription {
   id?: string;
-  status?: string;
+  status?: SubscriptionStatus;
   currentPeriodEnd?: string;
 }
 
@@ -52,7 +54,7 @@ interface OrderPayload {
 
 interface SubscriptionPayload {
   id?: string;
-  status?: string;
+  status?: SubscriptionStatus;
   currentPeriodEnd?: string;
 }
 
@@ -70,10 +72,11 @@ export async function POST(request: Request) {
         if (customerEmail) {
           const userId = await findUserByEmail(customerEmail);
           if (userId) {
+            // Use actual status from Polar — "trialing" during trial, "active" after
             await upsertSubscription(userId, {
               polar_subscription_id: payload.subscription?.id ?? payload.id,
               polar_price_id: payload.productPrice?.id,
-              status: "active",
+              status: payload.subscription?.status ?? "active",
               current_period_end: payload.subscription?.currentPeriodEnd ?? null,
             });
           }
@@ -81,16 +84,15 @@ export async function POST(request: Request) {
         break;
       }
 
+      case "subscription.trialing":
       case "subscription.active":
       case "subscription.updated": {
         const payload = event.data as SubscriptionPayload;
         if (payload.id) {
           const userId = await findUserBySubscriptionId(payload.id);
           if (userId) {
-            const status: "active" | "past_due" =
-              payload.status === "active" ? "active" : "past_due";
             await upsertSubscription(userId, {
-              status,
+              status: payload.status ?? "active",
               current_period_end: payload.currentPeriodEnd ?? null,
             });
           }
