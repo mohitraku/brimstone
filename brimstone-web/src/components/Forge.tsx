@@ -8,17 +8,19 @@ import type { Commitment } from "@/types/database";
 
 const FREQUENCIES = [
   { key: "daily", mark: "each dawn" },
-  { key: "weekdays", mark: "each labor" },
-  { key: "weekly", mark: "each seventh" },
+  { key: "recurring", mark: "certain days" },
 ] as const;
 
-const SIGILS = [
-  "🔥", "⚔️", "💪", "📖", "🏃", "🧘", "🎯", "💡", "⭐", "🛡️", "🕯️", "🌙",
-];
+const DAY_MARKS = ["S", "M", "T", "W", "T", "F", "S"];
 
 interface Props {
   commitments: Commitment[];
-  onAdd: (title: string, frequency: string, icon: string | null) => Promise<void>;
+  onAdd: (
+    title: string,
+    frequency: string,
+    recurrence_days: number[] | null,
+    recurrence_dates: number[] | null,
+  ) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onBack: () => void;
 }
@@ -26,17 +28,34 @@ interface Props {
 export function Forge({ commitments, onAdd, onRemove, onBack }: Props) {
   const [title, setTitle] = useState("");
   const [frequency, setFrequency] = useState("daily");
-  const [sigil, setSigil] = useState(SIGILS[0]);
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
+  const [recurrenceDates, setRecurrenceDates] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [forsakeId, setForsakeId] = useState<string | null>(null);
 
   const handleSwear = useCallback(async () => {
     if (!title.trim() || isSubmitting) return;
     setIsSubmitting(true);
-    await onAdd(title.trim(), frequency, sigil);
+    const days = frequency === "recurring" && recurrenceDays.length > 0 ? recurrenceDays : null;
+    const dates = frequency === "recurring" && recurrenceDates.length > 0 ? recurrenceDates : null;
+    await onAdd(title.trim(), frequency, days, dates);
     setTitle("");
+    setRecurrenceDays([]);
+    setRecurrenceDates([]);
     setIsSubmitting(false);
-  }, [title, frequency, sigil, isSubmitting, onAdd]);
+  }, [title, frequency, recurrenceDays, recurrenceDates, isSubmitting, onAdd]);
+
+  const toggleDay = useCallback((d: number) => {
+    setRecurrenceDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d],
+    );
+  }, []);
+
+  const toggleDate = useCallback((d: number) => {
+    setRecurrenceDates((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d],
+    );
+  }, []);
 
   const handleLongPress = useCallback((id: string) => {
     setForsakeId(id);
@@ -93,21 +112,55 @@ export function Forge({ commitments, onAdd, onRemove, onBack }: Props) {
             ))}
           </div>
 
-          {/* Sigil grid */}
-          <div style={styles.sigilGrid}>
-            {SIGILS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSigil(s)}
-                style={{
-                  ...styles.sigilCell,
-                  ...(sigil === s ? styles.sigilCellActive : {}),
-                }}
-              >
-                <span style={styles.sigilEmoji}>{s}</span>
-              </button>
-            ))}
-          </div>
+          {/* Day-of-week picker — shown when recurring */}
+          {frequency === "recurring" && (
+            <>
+              <div style={styles.dayPicker}>
+                {DAY_MARKS.map((mark, i) => (
+                  <button
+                    key={i}
+                    onClick={() => toggleDay(i)}
+                    style={{
+                      ...styles.dayChip,
+                      ...(recurrenceDays.includes(i) ? styles.dayChipActive : {}),
+                    }}
+                  >
+                    <span
+                      style={{
+                        ...styles.dayChipText,
+                        ...(recurrenceDays.includes(i) ? styles.dayChipTextActive : {}),
+                      }}
+                    >
+                      {mark}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Date-of-month picker */}
+              <div style={styles.datePicker}>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => toggleDate(d)}
+                    style={{
+                      ...styles.dateChip,
+                      ...(recurrenceDates.includes(d) ? styles.dateChipActive : {}),
+                    }}
+                  >
+                    <span
+                      style={{
+                        ...styles.dateChipText,
+                        ...(recurrenceDates.includes(d) ? styles.dateChipTextActive : {}),
+                      }}
+                    >
+                      {d}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Actions */}
           <button
@@ -131,49 +184,64 @@ export function Forge({ commitments, onAdd, onRemove, onBack }: Props) {
               <div style={styles.divider} />
               <p style={styles.sectionMark}>oaths bound</p>
 
-              {commitments.map((c) => (
-                <div key={c.id}>
-                  <button
-                    onContextMenu={(e) => { e.preventDefault(); handleLongPress(c.id); }}
-                    onTouchEnd={() => {
-                      // Long-press detection for mobile
-                      const timer = setTimeout(() => handleLongPress(c.id), 600);
-                      return () => clearTimeout(timer);
-                    }}
-                    style={{ ...styles.oathRow, touchAction: "manipulation" }}
-                  >
-                    <span style={styles.oathSigil}>{c.icon ?? "⬥"}</span>
-                    <span style={styles.oathTitle}>{c.title}</span>
-                    <span style={styles.oathFreq}>
-                      {FREQUENCIES.find((f) => f.key === c.frequency)?.mark ??
-                        c.frequency}
-                    </span>
-                  </button>
+              {commitments.map((c) => {
+                const freqDesc =
+                  c.frequency === "daily"
+                    ? "each dawn"
+                    : c.recurrence_days && c.recurrence_days.length > 0
+                      ? c.recurrence_days
+                          .map((d: number) => DAY_MARKS[d])
+                          .join(", ")
+                      : c.recurrence_dates && c.recurrence_dates.length > 0
+                        ? c.recurrence_dates.join(", ")
+                        : "certain days";
 
-                  {/* Inline forsake confirmation */}
-                  {forsakeId === c.id && (
-                    <div style={styles.forsakeConfirm}>
-                      <span style={styles.forsakeText}>
-                        forsake &ldquo;{c.title}&rdquo;?
-                      </span>
-                      <div style={styles.forsakeActions}>
-                        <button
-                          onClick={() => setForsakeId(null)}
-                          style={styles.forsakeNo}
-                        >
-                          no
-                        </button>
-                        <button
-                          onClick={() => confirmForsake(c.id)}
-                          style={styles.forsakeYes}
-                        >
-                          yes
-                        </button>
+                return (
+                  <div key={c.id}>
+                    <button
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        handleLongPress(c.id);
+                      }}
+                      onTouchStart={() => {
+                        const timer = setTimeout(() => handleLongPress(c.id), 600);
+                        // Store timer for cleanup — handled by the next touch event
+                        return () => clearTimeout(timer);
+                      }}
+                      style={{
+                        ...styles.oathRow,
+                        touchAction: "manipulation",
+                      }}
+                    >
+                      <span style={styles.oathTitle}>{c.title}</span>
+                      <span style={styles.oathFreq}>{freqDesc}</span>
+                    </button>
+
+                    {/* Inline forsake confirmation */}
+                    {forsakeId === c.id && (
+                      <div style={styles.forsakeConfirm}>
+                        <span style={styles.forsakeText}>
+                          forsake &ldquo;{c.title}&rdquo;?
+                        </span>
+                        <div style={styles.forsakeActions}>
+                          <button
+                            onClick={() => setForsakeId(null)}
+                            style={styles.forsakeNo}
+                          >
+                            no
+                          </button>
+                          <button
+                            onClick={() => confirmForsake(c.id)}
+                            style={styles.forsakeYes}
+                          >
+                            yes
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
               <p style={styles.hint}>hold to forsake</p>
             </>
           )}
@@ -267,16 +335,16 @@ const styles: Record<string, React.CSSProperties> = {
   chipTextActive: {
     color: colors.gold,
   },
-  sigilGrid: {
+  dayPicker: {
     display: "flex",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    justifyContent: "center",
   },
-  sigilCell: {
-    width: 44,
-    height: 44,
+  dayChip: {
+    width: 34,
+    height: 34,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -286,12 +354,48 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     padding: 0,
   },
-  sigilCellActive: {
+  dayChipActive: {
     borderColor: colors.accent,
     backgroundColor: colors.accentFaint,
   },
-  sigilEmoji: {
-    fontSize: 20,
+  dayChipText: {
+    color: colors.textFaint,
+    fontSize: fontSize.xs,
+    fontFamily: "serif",
+  },
+  dayChipTextActive: {
+    color: colors.gold,
+  },
+  datePicker: {
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 3,
+    marginBottom: spacing.lg,
+  },
+  dateChip: {
+    width: 34,
+    height: 30,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
+    border: `1px solid ${colors.border}`,
+    cursor: "pointer",
+    padding: 0,
+  },
+  dateChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFaint,
+  },
+  dateChipText: {
+    color: colors.textFaint,
+    fontSize: 10,
+    fontFamily: "serif",
+  },
+  dateChipTextActive: {
+    color: colors.gold,
   },
   swearBtn: {
     backgroundColor: colors.accent,
@@ -343,20 +447,9 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     background: "none",
     cursor: "pointer",
-    border: "none",
-    borderBottomStyle: "solid",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     textAlign: "left",
     fontFamily: "serif",
     color: colors.text,
-  },
-  oathSigil: {
-    fontSize: 16,
-    marginRight: spacing.sm,
-    width: 28,
-    textAlign: "center",
-    display: "inline-block",
   },
   oathTitle: {
     flex: 1,

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { FlameScene } from "./FlameScene";
 import { CommitmentCard } from "./CommitmentCard";
 import { colors, spacing, fontSize } from "@/lib/theme";
-import { flameLevelName, flameColor } from "@/lib/flame-math";
+import { flameLevelName, flameColor, isCommitmentActiveOnDate, todayDateString } from "@/lib/flame-math";
 import type { FlameUIState } from "@/types/database";
 import type { Commitment } from "@/types/database";
 
@@ -15,6 +15,7 @@ interface Props {
   commitments: Commitment[];
   completedIds: Set<string>;
   onComplete: (id: string) => Promise<number>;
+  onUncomplete: (id: string) => Promise<number>;
   onForge: () => void;
 }
 
@@ -23,6 +24,7 @@ export function Hearth({
   commitments,
   completedIds,
   onComplete,
+  onUncomplete,
   onForge,
 }: Props) {
   const [overlayVisible, setOverlayVisible] = useState(true);
@@ -35,6 +37,7 @@ export function Hearth({
     return () => clearTimeout(fadeTimer);
   }, [flame.flameIntensity]);
 
+  const today = todayDateString();
   const isDead = flame.flameIntensity <= 0;
   const levelName = flameLevelName(flame.flameIntensity);
   const fColor = flameColor(flame.flameIntensity);
@@ -97,10 +100,16 @@ export function Hearth({
               <CommitmentCard
                 key={c.id}
                 title={c.title}
-                icon={c.icon}
                 frequency={c.frequency}
+                recurrence_days={c.recurrence_days}
+                recurrence_dates={c.recurrence_dates}
                 isCompleted={completedIds.has(c.id)}
+                isActiveToday={
+                  (c as any).isActiveToday ??
+                  isCommitmentActiveOnDate(c, today)
+                }
                 onComplete={() => onComplete(c.id)}
+                onUncomplete={() => onUncomplete(c.id)}
               />
             ))
           )}

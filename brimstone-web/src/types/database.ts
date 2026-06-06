@@ -24,8 +24,9 @@ export interface Commitment {
   id: string;
   user_id: string;
   title: string;
-  frequency: string; // "daily" | "weekdays" | "weekly"
-  icon: string | null;
+  frequency: "daily" | "recurring";
+  recurrence_days: number[] | null;   // 0=Sun … 6=Sat
+  recurrence_dates: number[] | null;  // 1–31
   is_deleted: boolean;
   created_at: string;
 }

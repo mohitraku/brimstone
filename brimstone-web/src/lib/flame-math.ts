@@ -65,3 +65,20 @@ export function flameColor(intensity: number): string {
   const b = Math.round(10 + intensity * 30);
   return `rgb(${r},${g},${b})`;
 }
+
+/** Whether a commitment is active on a given date (client + server use). */
+export function isCommitmentActiveOnDate(
+  c: { frequency: string; recurrence_days: number[] | null; recurrence_dates: number[] | null },
+  dateStr: string,
+): boolean {
+  if (c.frequency === "daily") return true;
+  if (c.frequency === "recurring") {
+    const d = new Date(dateStr + "T00:00:00");
+    const dayOfWeek = d.getDay(); // 0=Sun
+    const dayOfMonth = d.getDate();
+    if (c.recurrence_days && c.recurrence_days.includes(dayOfWeek)) return true;
+    if (c.recurrence_dates && c.recurrence_dates.includes(dayOfMonth)) return true;
+    return false;
+  }
+  return true;
+}

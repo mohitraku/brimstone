@@ -48,11 +48,19 @@ export async function createCommitment(
   id: string,
   title: string,
   frequency: string,
-  icon: string | null,
+  recurrence_days: number[] | null,
+  recurrence_dates: number[] | null,
 ): Promise<void> {
   await getServiceClient()
     .from("commitments")
-    .insert({ id, user_id: userId, title, frequency, icon });
+    .insert({
+      id,
+      user_id: userId,
+      title,
+      frequency,
+      recurrence_days,
+      recurrence_dates,
+    });
 }
 
 export async function deleteCommitment(id: string): Promise<void> {
@@ -67,7 +75,9 @@ export async function getActiveCommitmentsForDate(
   dateStr: string,
 ): Promise<Commitment[]> {
   const db = getServiceClient();
-  const dayOfWeek = new Date(dateStr + "T00:00:00").getDay(); // 0=Sun
+  const d = new Date(dateStr + "T00:00:00");
+  const dayOfWeek = d.getDay(); // 0=Sun
+  const dayOfMonth = d.getDate();
 
   const { data } = await db
     .from("commitments")
@@ -79,9 +89,12 @@ export async function getActiveCommitmentsForDate(
 
   return all.filter((c) => {
     if (c.frequency === "daily") return true;
-    if (c.frequency === "weekdays") return dayOfWeek >= 1 && dayOfWeek <= 5;
-    if (c.frequency === "weekly") return dayOfWeek === 0;
-    return true;
+    if (c.frequency === "recurring") {
+      if (c.recurrence_days && c.recurrence_days.includes(dayOfWeek)) return true;
+      if (c.recurrence_dates && c.recurrence_dates.includes(dayOfMonth)) return true;
+      return false;
+    }
+    return true; // fallback
   });
 }
 
@@ -116,6 +129,20 @@ export async function getTodaysCompletedIds(
     .eq("completed_date", today);
 
   return new Set(((data as { commitment_id: string }[]) ?? []).map((r) => r.commitment_id));
+}
+
+/** Remove an ember — undo a completion. */
+export async function deleteEmber(
+  userId: string,
+  commitmentId: string,
+  completedDate: string,
+): Promise<void> {
+  await getServiceClient()
+    .from("embers")
+    .delete()
+    .eq("user_id", userId)
+    .eq("commitment_id", commitmentId)
+    .eq("completed_date", completedDate);
 }
 
 // ── Decay Log ────────────────────────────────────────────────

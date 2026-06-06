@@ -30,11 +30,16 @@ export function useCommitments(onChange?: () => void) {
   }, [refresh]);
 
   const add = useCallback(
-    async (title: string, frequency: string, icon: string | null) => {
+    async (
+      title: string,
+      frequency: string,
+      recurrence_days: number[] | null,
+      recurrence_dates: number[] | null,
+    ) => {
       await fetch("/api/commitments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, frequency, icon }),
+        body: JSON.stringify({ title, frequency, recurrence_days, recurrence_dates }),
       });
       await refresh();
       onChange?.();
@@ -81,5 +86,35 @@ export function useCommitments(onChange?: () => void) {
     [refresh, onChange],
   );
 
-  return { commitments, completedIds, isLoading, refresh, add, remove, complete };
+  const uncomplete = useCallback(
+    async (commitmentId: string): Promise<number> => {
+      // Optimistic update — remove from completedIds
+      setCompletedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(commitmentId);
+        return next;
+      });
+
+      try {
+        const res = await fetch(`/api/commitments/${commitmentId}/complete`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          // Revert
+          setCompletedIds((prev) => new Set([...prev, commitmentId]));
+          throw new Error(`Uncomplete failed: ${res.status}`);
+        }
+        const data = await res.json();
+        await refresh();
+        onChange?.();
+        return data.flameIntensity ?? 0;
+      } catch (e) {
+        console.error("uncomplete failed:", e);
+        return 0;
+      }
+    },
+    [refresh, onChange],
+  );
+
+  return { commitments, completedIds, isLoading, refresh, add, remove, complete, uncomplete };
 }

@@ -16,7 +16,7 @@ export default function Home() {
   const { user, isLoading: authLoading } = useAuth();
   const { flame, isLoading: flameLoading, refresh } = useFlame();
   const { processDecay } = useDecay(refresh);
-  const { commitments, completedIds, add, remove, complete } =
+  const { commitments, completedIds, add, remove, complete, uncomplete } =
     useCommitments(refresh);
 
   const [view, setView] = useState<ViewName>("hearth");
@@ -41,6 +41,11 @@ export default function Home() {
   const handleComplete = useCallback(
     (id: string): Promise<number> => complete(id),
     [complete],
+  );
+
+  const handleUncomplete = useCallback(
+    (id: string): Promise<number> => uncomplete(id),
+    [uncomplete],
   );
 
   // Auth loading
@@ -78,6 +83,7 @@ export default function Home() {
           commitments={commitments}
           completedIds={completedIds}
           onComplete={handleComplete}
+          onUncomplete={handleUncomplete}
           onForge={() => setView("forge")}
         />
       ) : (
